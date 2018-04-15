@@ -3,6 +3,76 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+## Overview
+
+This project is an implementation of MPC algorithm in C++ to steer a car around the track in Udacity simulator. Using the algorithm, the virtual car can easily and safely ride the driveable portion of the track with realtively high speed.
+
+## Implementation Description
+
+### The Model
+I have used a simple kinematic model, meaning that I have ignored tire forces, gravity and mass. For sure, this results in lack of the accuracy, but the model is much more tractable. For reasonable speeds, simple kinematic model shows pretty good results.
+
+The state at time t of the model is described with 6 variables:
+
+* 'x' and 'y' - position of the car
+* 'psi' - heading direction of the car
+* 'v' - velocity of the car
+* 'cte' - cross track error
+* 'epsi' - orientation error
+
+In addition the the state, Udacity has provided a constant 'Lf' which is the distance between the car of mass and the front wheels 
+
+The equations for updating the state of model are the following:
+![](/result_img/model_equations.png "Model Equations")
+
+The model output variables are:
+
+* 'a' - throttle (acceleration of the car)
+* 'delta' - steering angle
+
+### Timestep Length and Elapsed Duration (N & dt)
+Prediction horizon is defined by two variables:
+
+* N - the number of points
+* dt - the time interval
+
+As the number of points impacts the controller performance, I tried to keep them as low as possible. I have taken proposed in lesson values (N=10, dt=0.1), but to see exactly, what is the influence, I played with those values, incresing/decreasing them.
+
+With increasing 'N' increased the computational cost, the algorithm runs slower and predicts too much unnecessary data for the future. With decrease of N, algorithm can not predict enough data for the future and this cause instabilities, especially on sharp turns.
+
+'dt' parameter is even easier. When I decreased it, the car started to respond slower than it got new actions. With increase of 'dt', the car responded lately to state, which required immediate actions (speaking about same sharp turns).
+
+As a result, I decided to used proposed to use provided values (N=10, dt=0.1) and do further tuning via penalty weights.
+
+### Polynomial Fitting and MPC Preprocessing
+Before predicting the next state, waypoints needed to be proprocessed. The process of fitting a polynomial to the waypoints here is advised to be used on vehile coordinates, while I got them in global coordinates. For the required conversion I've used the following formulas:
+
+```
+X_vehicle = X_global ∗ cos(​theta) - Y_global * sin(theta)
+Y_vehicle = X_global ∗ sin(​theta) + Y_global * cos(theta)
+```
+
+where 'X_vehicle' and 'Y_vehicle' are the desired coordinates in vehicle space, 'X_global' and 'Y_global' are the input coordinates in world space, and 'theta' is the angle between the world x-axis and the car x-axis about the world coordinates z-axis, provided it is perpendicular to the car frames x-axis.
+
+### Model Predicted Control with Latency
+To deal with actuator latency, state values are computed using the model and delay interval (100ms). These values are used instead of the initial. Without this optimisation, algorithm built bad trajectories and showed oscillations. Then result state was passed to the MPC solver.
+
+### Additional Parameter Tuning
+As I have said earlier, I decided to leave N and dt params as provided and tune penalty weights in order to get max accurate results.
+
+I think, there are numerous variants of different param sets to get good results here. My tuning results are as following:
+
+title | value
+--- | --- | ---
+cross track error penalty weight | 2000 
+orientation error penalty weight | 2000 
+delta error penalty weight | 10 
+speed penalty weight | 10
+delta diff error penalty weight | 100
+speed diff error penalty weight | 10
+
+The first two values were used as a part of the cost based on the reference state. The next two were used to minimise the use of actuators, and the last two - minimise the value gap between sequential actuations, to result in smoother transaction.
+
 ## Dependencies
 
 * cmake >= 3.5
@@ -37,72 +107,3 @@ Self-Driving Car Engineer Nanodegree Program
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
-
-## Tips
-
-1. It's recommended to test the MPC on basic examples to see if your implementation behaves as desired. One possible example
-is the vehicle starting offset of a straight line (reference). If the MPC implementation is correct, after some number of timesteps
-(not too many) it should find and track the reference line.
-2. The `lake_track_waypoints.csv` file has the waypoints of the lake track. You could use this to fit polynomials and points and see of how well your model tracks curve. NOTE: This file might be not completely in sync with the simulator so your solution should NOT depend on it.
-3. For visualization this C++ [matplotlib wrapper](https://github.com/lava/matplotlib-cpp) could be helpful.)
-4.  Tips for setting up your environment are available [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
-5. **VM Latency:** Some students have reported differences in behavior using VM's ostensibly a result of latency.  Please let us know if issues arise as a result of a VM environment.
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/b1ff3be0-c904-438e-aad3-2b5379f0e0c3/concepts/1a2255a0-e23c-44cf-8d41-39b8a3c8264a)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
