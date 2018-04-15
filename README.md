@@ -63,7 +63,7 @@ As I have said earlier, I decided to leave N and dt params as provided and tune 
 I think, there are numerous variants of different param sets to get good results here. My tuning results are as following:
 
 title | value
---- | --- | ---
+--- | ---
 cross track error penalty weight | 2000 
 orientation error penalty weight | 2000 
 delta error penalty weight | 10 
