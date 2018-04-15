@@ -124,7 +124,7 @@ int main() {
           double next_psi = - (v * delta * dt / Lf);
           double next_v = v + a * dt;
           double next_cte = cte + v * sin(epsi) * dt;
-          double next_epsi = epsi + v/Lf * -delta * dt;
+          double next_epsi = epsi - (v * atan(coeffs[1]) * dt / Lf);
 
           Eigen::VectorXd state(6);
           state << next_px, next_py, next_psi, next_v, next_cte, next_epsi;
@@ -132,7 +132,7 @@ int main() {
           // Solve MPC
           auto vars = mpc.Solve(state, coeffs);
 
-          double steer_value =  vars[0] / deg2rad(25);
+          double steer_value = vars[0];
           double throttle_value = vars[1];
           
 
@@ -162,7 +162,7 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
-          int num_pts = 25;
+          int num_pts = 20;
           for (int i = 1; i < num_pts; i++) {
             next_x_vals.push_back(3 * i);
             next_y_vals.push_back(polyeval(coeffs, 3 * i));
